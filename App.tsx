@@ -1,21 +1,39 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { generateWallpapers } from './services/geminiService';
 import { GeneratedImage, GenerationState } from './types';
 import LoadingGrid from './components/LoadingGrid';
 import ImageViewer from './components/ImageViewer';
-import { Sparkles, Image as ImageIcon, Search } from 'lucide-react';
+import SettingsModal from './components/SettingsModal';
+import { getApiKey } from './utils/storage';
+import { Sparkles, Image as ImageIcon, Search, Settings } from 'lucide-react';
 
 const App: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [state, setState] = useState<GenerationState>({ isLoading: false, error: null });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Check for API key on mount
+  useEffect(() => {
+    if (!getApiKey()) {
+      // Small delay to let UI render before showing modal if needed
+      setTimeout(() => setIsSettingsOpen(true), 500);
+    }
+  }, []);
 
   const handleGenerate = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!prompt.trim() || state.isLoading) return;
+
+    if (!getApiKey()) {
+      setIsSettingsOpen(true);
+      return;
+    }
 
     // Dismiss keyboard on mobile
     if (inputRef.current) {
@@ -48,7 +66,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-background text-white pb-32 font-sans selection:bg-primary/30">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-white/5 px-6 py-4 flex items-center justify-center">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-white/5 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 p-2 rounded-lg">
             <ImageIcon size={20} className="text-white" />
@@ -57,6 +75,12 @@ const App: React.FC = () => {
             MoodPaper
           </h1>
         </div>
+        <button 
+          onClick={() => setIsSettingsOpen(true)}
+          className="p-2 text-secondary hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
+        >
+          <Settings size={20} />
+        </button>
       </header>
 
       {/* Main Content */}
@@ -151,6 +175,12 @@ const App: React.FC = () => {
           onRemix={handleRemix}
         />
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   );
 };

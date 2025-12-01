@@ -1,10 +1,36 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { GeneratedImage } from "../types";
+import { getApiKey } from "../utils/storage";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get client with current key
+const getClient = () => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("API Key가 설정되지 않았습니다. 우측 상단 설정 아이콘을 눌러 키를 등록해주세요.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+export const testConnection = async (apiKey: string): Promise<boolean> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    // Attempt a very cheap/fast generation to verify the key
+    await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: 'Hello',
+    });
+    return true;
+  } catch (error) {
+    console.error("Connection Test Error:", error);
+    throw error;
+  }
+};
 
 export const generateWallpapers = async (prompt: string): Promise<GeneratedImage[]> => {
   try {
+    const ai = getClient();
+
     // API limits usually cap at 4 images per request. 
     // To generate 6 versions, we make two parallel requests of 3 images each.
     const requestConfig = {
@@ -46,6 +72,10 @@ export const generateWallpapers = async (prompt: string): Promise<GeneratedImage
 
   } catch (error: any) {
     console.error("Gemini Image Generation Error:", error);
+    // Enhance error message for common API key issues
+    if (error.message?.includes('API key')) {
+      throw new Error("API Key가 유효하지 않습니다. 설정을 확인해주세요.");
+    }
     throw new Error(error.message || "이미지 생성 중 오류가 발생했습니다.");
   }
 };
