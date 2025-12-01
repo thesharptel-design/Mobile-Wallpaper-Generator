@@ -5,22 +5,32 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateWallpapers = async (prompt: string): Promise<GeneratedImage[]> => {
   try {
-    // Using Imagen 3 via the updated SDK pattern
-    const response = await ai.models.generateImages({
+    // API limits usually cap at 4 images per request. 
+    // To generate 6 versions, we make two parallel requests of 3 images each.
+    const requestConfig = {
       model: 'imagen-4.0-generate-001',
       prompt: prompt,
       config: {
-        numberOfImages: 4,
+        numberOfImages: 3,
         outputMimeType: 'image/jpeg',
         aspectRatio: '9:16',
       },
-    });
+    };
 
-    if (!response.generatedImages || response.generatedImages.length === 0) {
+    const [response1, response2] = await Promise.all([
+      ai.models.generateImages(requestConfig),
+      ai.models.generateImages(requestConfig)
+    ]);
+
+    const images1 = response1.generatedImages || [];
+    const images2 = response2.generatedImages || [];
+    const allImages = [...images1, ...images2];
+
+    if (allImages.length === 0) {
       throw new Error("이미지를 생성하지 못했습니다.");
     }
 
-    const newImages: GeneratedImage[] = response.generatedImages.map((img) => {
+    const newImages: GeneratedImage[] = allImages.map((img) => {
       const base64Data = img.image.imageBytes;
       const url = `data:image/jpeg;base64,${base64Data}`;
       
